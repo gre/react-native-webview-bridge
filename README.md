@@ -1,123 +1,173 @@
-# React Native WebView Javascript Bridge
-This project is inspired by [WebViewJavascriptBridge](https://github.com/marcuswestin/WebViewJavascriptBridge).
+## Please take a look at this [issue](https://github.com/alinz/react-native-webview-bridge/issues/109) first
 
-> In order for me to extend React-Native's WebView, I had to use `Category` feature objective-c, that would be the simplest and most elegant way by far.
+# React Native WebView Javascript Bridge
+I have been testing and reading a lot of way to safely create a bridge between react-native and webview. I'm happy to announced that the wait is over and from **React-Native 0.20 and above**, the bridge is fully functional.
+
+
 
 ## Installation
 
 In order to use this extension, you have to do the following steps:
 
-1. in your react-native project, run `npm install react-native-webview-bridge`
-2. go to xcode's `Project Navigator` tab
-3. right click on `Libraries`
-4. select `Add Files to ...` option
-5. navigate to `node_modules/react-native-webview-bridge` and add `WebViewBridge` folder
-6. clean compile to make sure your project can compile and build.
+in your react-native project, run `npm install react-native-webview-bridge --save`
+
+### iOS
+
+1. go to xcode's `Project Navigator` tab
+<p align="center">
+    <img src ="https://raw.githubusercontent.com/alinz/react-native-webview-bridge/master/doc/assets/01.png" />
+</p>
+2. right click on `Libraries`
+3. select `Add Files to ...` option
+<p align="center">
+    <img src ="https://raw.githubusercontent.com/alinz/react-native-webview-bridge/master/doc/assets/02.png" />
+</p>
+4. navigate to `node_modules/react-native-webview-bridge/ios` and add `React-Native-Webview-Bridge.xcodeproj` folder
+<p align="center">
+    <img src ="https://raw.githubusercontent.com/alinz/react-native-webview-bridge/master/doc/assets/03.png" />
+</p>
+5. on project `Project Navigator` tab, click on your project's name and select Target's name and from there click on `Build Phases`
+<p align="center">
+    <img src ="https://raw.githubusercontent.com/alinz/react-native-webview-bridge/master/doc/assets/04.png" />
+</p>
+6. expand `Link Binary With Libraries` and click `+` sign to add a new one.
+7. select `libReact-Native-Webviwe-Bridge.a` and click `Add` button.
+<p align="center">
+    <img src ="https://raw.githubusercontent.com/alinz/react-native-webview-bridge/master/doc/assets/05.png" />
+</p>
+8. clean compile to make sure your project can compile and build.
+
+### Android
+
+1. add the following import to `MainApplication.java` (`MainActivity.java` if RN < 0.29) of your application
+
+```java
+import com.github.alinz.reactnativewebviewbridge.WebViewBridgePackage;
+```
+
+2. add the following code to add the package to `MainApplication.java`` (`MainActivity.java` if RN < 0.29)
+
+```java
+protected List<ReactPackage> getPackages() {
+        return Arrays.<ReactPackage>asList(
+            new MainReactPackage(),
+                new WebViewBridgePackage() //<- this
+        );
+    }
+```
+
+3. add the following codes to your `android/setting.gradle`
+
+> you might have multiple 3rd party libraries, make sure that you don't create multiple include.
+
+```
+include ':app', ':react-native-webview-bridge'
+project(':react-native-webview-bridge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-webview-bridge/android')
+```
+
+4. edit `android/app/build.gradle` and add the following line inside `dependencies`
+
+```
+compile project(':react-native-webview-bridge')
+```
+
+5. run `react-native run-android` to see if everything is compilable.
 
 ## Usage
 
-There is a script which will be injected by this extension to the first page that you load. In order for your webpage to get access to the injected script, you have to use the following function.
+just import the module with one of your choices way:
+
+** CommonJS style **
 
 ```js
-function WebViewBridgeReady(cb) {
-  //checks whether WebViewBirdge exists in global scope.
-  if (window.WebViewBridge) {
-    cb(window.WebViewBridge);
-    return;
-  }
-
-  function handler() {
-    //remove the handler from listener since we don't need it anymore
-    document.removeEventListener('WebViewBridge', handler, false);
-    //pass the WebViewBridge object to the callback
-    cb(window.WebViewBridge);
-  }
-
-  //if WebViewBridge doesn't exist in global scope attach itself to document
-  //event system. Once the code is being injected by extension, the handler will
-  //be called.
-  document.addEventListener('WebViewBridge', handler, false);
-}
-```
-
-so now, anywhere in your script in webpage, you can call
-
-```js
-WebViewBridgeReady(function (WebViewBridge) {
-  //at this time, you should be able to use the injected code here.
-});
-```
-
-`WebViewBridge` exposes 2 methods, `send` and `onMessage`;
-
-if you want to send a message to `React-Native` component, call the `send` method.
-
-if you want to receive message from `React-Native`, attach a function to `onMessage`.
-
-For Example:
-
-```js
-WebViewBridgeReady(function (WebViewBridge) {
-  WebViewBridge.onMessage = function(message) {
-    console.log('got a message from react-native', message);
-  };
-
-  //sending a message to react-native
-  WebViewBridge.send("Hello this is me calling from web page");
-});
-```
-
-
-On React-Native side, you just have to load the `WebViewBridge` component.
-
-```js
-var React = require('react-native');
 var WebViewBridge = require('react-native-webview-bridge');
 ```
 
-Since `WebViewBridge` is extending `WebView` component, it behaves exactly as WebView.
-What it means that `WebViewBridge` has all the methods and props of `WebView` component.
-
-So here's an example of using `WebViewBridge`,
+** ES6/ES2015 style **
 
 ```js
-var React = require('react-native');
-var WebViewBridge = require('react-native-webview-bridge');
+import WebViewBridge from 'react-native-webview-bridge';
+```
 
-var {
-  Component
-} = React;
+`WebViewBridge` is an extension of `WebView`. It injects special script into any pages once it loads. Also it extends the functionality of `WebView` by adding 1 new method and 1 new props.
 
-var WEBVIEW_REF = 'my_webview';
+#### sendToBridge(message)
+the message must be in string. because this is the only way to send data back and forth between native and webview.
 
-class MyAwesomeView extends Component {
-  constructor(props) {
-    super(props);
-  }
 
-  componentDidMount() {
-    var webviewRef = this.refs[WEBVIEW_REF];
+#### onBridgeMessage
+this is a prop that needs to be a function. it will be called once a message is received from webview. The type of received message is also in string.
 
-    webviewRef.onMessage(function (message) {
-      console.log("This message coming from web view", message);
-      webviewRef.send("Hello from react-native");
-    });
-    
-    webviewRef.injectBridgeScript();
-  }
+#### allowFileAccessFromFileURLs (Android only)
+this is a prop that allows locally loaded pages via file:// to access other file:// resources.  Pass-thru to corresponding [setting](https://developer.android.com/reference/android/webkit/WebSettings.html#setAllowFileAccessFromFileURLs(boolean)) in WebView. Default is `false` for Android 4.1 and above.
 
+#### allowUniversalAccessFromFileURLs (Android only)
+this is a prop that allows locally loaded pages via file:// to access resources in any origin.  Pass-thru to corresponding [setting](https://developer.android.com/reference/android/webkit/WebSettings.html#setAllowUniversalAccessFromFileURLs(boolean)) in WebView.  Default is `false` for Android 4.1 and above.
+
+## Bridge Script
+
+bridge script is a special script which injects into all the webview. It automatically register a global variable called `WebViewBridge`. It has 2 optional methods to implement and one method to send message to native side.
+
+#### send(message)
+
+this method sends a message to native side. the message must be in string type or `onError` method will be called.
+
+#### onMessage
+
+this method needs to be implemented. it will be called once a message arrives from native side. The type of message is in string.
+
+#### onError (iOS only)
+
+this is an error reporting method. It will be called if there is an error happens during sending a message. It receives a error message in string type.
+
+## Notes
+
+> a special bridge script will be injected once the page is going to different URL. So you don't have to manage when it needs to be injected.
+
+> You can still pass your own javascript to be injected into webview. However, Bridge script will be injected first and then your custom script.
+
+
+## Simple Example
+This example can be found in `examples` folder.
+
+```js
+const injectScript = `
+  (function () {
+                    if (WebViewBridge) {
+
+                      WebViewBridge.onMessage = function (message) {
+                        if (message === "hello from react-native") {
+                          WebViewBridge.send("got the message inside webview");
+                        }
+                      };
+                
+                      WebViewBridge.send("hello from webview");
+                    }
+                  }());
+`;
+
+var Sample2 = React.createClass({
+  onBridgeMessage(message){
+    const { webviewbridge } = this.refs;
+
+    switch (message) {
+      case "hello from webview":
+        webviewbridge.sendToBridge("hello from react-native");
+        break;
+      case "got the message inside webview":
+        console.log("we have got a message from webview! yeah");
+        break;
+    }
+  },
+  
   render() {
     return (
       <WebViewBridge
-        ref={WEBVIEW_REF}
-        url="http://<my awesome project url>"
-        style={{flex: 1}}
-      />
+        ref="webviewbridge"
+        onBridgeMessage={this.onBridgeMessage.bind(this)}
+        injectedJavaScript={injectScript}
+        source={{uri: "http://google.com"}}/>
     );
   }
-}
-
-Added feature
-
-- 0.3.4
-  - added `print` feature [exampl ecode](https://github.com/alinz/react-native-webview-bridge/blob/v0.3.4/example/Sample1/index.ios.js#L53)
+});
+```
